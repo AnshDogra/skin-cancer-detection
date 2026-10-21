@@ -1,0 +1,19 @@
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Node.js
+node_modules/
+Frontend/node_modules/
+Frontend/dist/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Editor files
+.vscode/
