@@ -11,17 +11,24 @@ import os
 
 app = FastAPI(title="Skin Lesion Classification API")
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://skin-cancer-detection-ansh-da71.vercel.app",
+        "https://skin-cancer-detection-mesn.vercel.app",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "skin_cancer_model.pth")
 MAPPING_PATH = os.path.join(BASE_DIR, "class_mapping.json")
+MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -64,7 +71,7 @@ def health():
     return {"status": "ok", "device": str(device)}
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+def predict(file: UploadFile = File(...)):
     if file.content_type not in [
         "image/jpeg", "image/png", "image/webp"
     ]:
@@ -73,9 +80,9 @@ async def predict(file: UploadFile = File(...)):
             detail="Please upload a JPEG, PNG, or WebP image."
         )
 
-    content = await file.read()
+    content = file.file.read(MAX_IMAGE_SIZE_BYTES + 1)
 
-    if len(content) > 10 * 1024 * 1024:
+    if len(content) > MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(
             status_code=413,
             detail="Image must be smaller than 10 MB."
@@ -91,7 +98,7 @@ async def predict(file: UploadFile = File(...)):
 
     tensor = transform(image).unsqueeze(0).to(device)
 
-    with torch.no_grad():
+    with torch.inference_mode():
         outputs = model(tensor)
         probs = torch.softmax(outputs, dim=1)[0].cpu()
 
